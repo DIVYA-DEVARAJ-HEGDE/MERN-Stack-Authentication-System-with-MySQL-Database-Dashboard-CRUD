@@ -1,0 +1,33 @@
+const db = require("../config/db");
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+
+exports.register = async (req, res) => {
+  const { name, email, password } = req.body;
+
+  const hashed = await bcrypt.hash(password, 10);
+
+  db.query(
+    "INSERT INTO users (name, email, password) VALUES (?, ?, ?)",
+    [name, email, hashed],
+    (err) => {
+      if (err) return res.status(500).send(err);
+      res.send("User Registered ✅");
+    }
+  );
+};
+
+exports.login = (req, res) => {
+  const { email, password } = req.body;
+
+  db.query("SELECT * FROM users WHERE email=?", [email], async (err, result) => {
+    if (result.length === 0) return res.send("User not found ❌");
+
+    const match = await bcrypt.compare(password, result[0].password);
+    if (!match) return res.send("Wrong password ❌");
+
+    const token = jwt.sign({ id: result[0].id }, process.env.JWT_SECRET);
+
+    res.json({ token });
+  });
+};
